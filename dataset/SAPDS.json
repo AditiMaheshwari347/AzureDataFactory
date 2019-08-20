@@ -1,0 +1,12 @@
+{
+	"name": "SAPDS",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "SAPLS",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "RelationalTable"
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

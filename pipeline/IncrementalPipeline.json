@@ -1,0 +1,315 @@
+{
+	"name": "IncrementalPipeline",
+	"properties": {
+		"activities": [
+			{
+				"name": "Get_Latest_Date",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "RelationalSource",
+						"query": {
+							"value": "SELECT MAX(\"ERDAT\") AS MAXINSERTIONDATE, MAX(\"AEDAT\") AS MAXUPDATEDATE FROM @{pipeline().parameters.IncrementalSource}",
+							"type": "Expression"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"preCopyScript": "DELETE FROM  Storageacc44"
+					},
+					"enableStaging": false
+				},
+				"inputs": [
+					{
+						"referenceName": "SAPDS",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "SQLDBDateDS",
+						"type": "DatasetReference",
+						"parameters": {
+							"Date_Table": {
+								"value": "@{pipeline().parameters.DateTable}",
+								"type": "Expression"
+							}
+						}
+					}
+				]
+			},
+			{
+				"name": "Lookup_the_date",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Get_Latest_Date",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource"
+					},
+					"dataset": {
+						"referenceName": "SQLDBDateDS",
+						"type": "DatasetReference",
+						"parameters": {
+							"Date_Table": {
+								"value": "@{pipeline().parameters.DateTable}",
+								"type": "Expression"
+							}
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "copy data using max date",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Lookup_the_date",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Lookup_the_date').output.value",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "INSERT NEW RECORDS",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "RelationalSource",
+									"query": {
+										"value": "SELECT * FROM @{pipeline().parameters.IncrementalSource} WHERE \"ERDAT\">=@{item().MAXINSERTIONDATE} and \"AEDAT\" = 00000000",
+										"type": "Expression"
+									}
+								},
+								"sink": {
+									"type": "AzureSqlSink"
+								},
+								"enableStaging": false
+							},
+							"inputs": [
+								{
+									"referenceName": "SFDS",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "SQLDBMainDS",
+									"type": "DatasetReference",
+									"parameters": {
+										"Main_table": {
+											"value": "@{pipeline().parameters.IncrementalSink}",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						},
+						{
+							"name": "Import_Schema_Staging",
+							"type": "WebActivity",
+							"dependsOn": [
+								{
+									"activity": "INSERT NEW RECORDS",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"url": "https://ctazuresmartenterprise-function-app.azurewebsites.net/api/createschemaindwh?code=4lSGi8bKQyDq3dAnAZuRo5SuGCAupAV1WXI2RBnD5r/wlWRkUBREqw==",
+								"method": "POST",
+								"body": {
+									"value": "{\n\"blob_con_string\":\"DefaultEndpointsProtocol=https;AccountName=scastoreaccount;AccountKey=vFOXuyfWpfobLZtrmBO3e9es5FDWIVfhPehU3GpVZ/6K3DKg4Ww7QgiwfIUeue+0MXWgu4mR4UH8n9CUUcIcyg==;EndpointSuffix=core.windows.net\",\n\"sql_con_string\":\"Server=tcp:scasql-server.database.windows.net,1433;Initial Catalog=sca-db;Persist Security Info=False;User ID=celebal;Password=password@123;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;\",\n \"filename\": \"@{pipeline().parameters.IncrementalSink}.csv\",\n \"containerName\": \"marketplace\",\n \"tablename\": \"@{pipeline().parameters.StagingTable}\"\n}",
+									"type": "Expression"
+								},
+								"datasets": [
+									{
+										"referenceName": "SADSStaging",
+										"type": "DatasetReference",
+										"parameters": {
+											"Staging_Blob": {
+												"value": "@{pipeline().parameters.IncrementalSink}.csv",
+												"type": "Expression"
+											}
+										}
+									}
+								]
+							}
+						},
+						{
+							"name": "INSERT UPDATED RECORDS IN STAGING",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "Import_Schema_Staging",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "RelationalSource",
+									"query": {
+										"value": "SELECT *\nFROM @{pipeline().parameters.IncrementalSource} WHERE \"AEDAT\">=@{item().MAXUPDATEDATE}",
+										"type": "Expression"
+									}
+								},
+								"sink": {
+									"type": "AzureSqlSink"
+								},
+								"enableStaging": false
+							},
+							"inputs": [
+								{
+									"referenceName": "SFDS",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "SQLDBStagingDS",
+									"type": "DatasetReference",
+									"parameters": {
+										"Staging_Table": {
+											"value": "@{pipeline().parameters.StagingTable}",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						},
+						{
+							"name": "INSERT UPDATED RECORDS TO MAIN TABLE",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "INSERT UPDATED RECORDS IN STAGING",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource"
+								},
+								"sink": {
+									"type": "AzureSqlSink"
+								},
+								"enableStaging": false
+							},
+							"inputs": [
+								{
+									"referenceName": "SQLDBStagingDS",
+									"type": "DatasetReference",
+									"parameters": {
+										"Staging_Table": {
+											"value": "@{pipeline().parameters.StagingTable}",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "SQLDBMainDS",
+									"type": "DatasetReference"
+								}
+							]
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"IncrementalSource": {
+				"type": "string",
+				"defaultValue": "\"SAPHANADB\".\"VBAK\""
+			},
+			"IncrementalSink": {
+				"type": "string",
+				"defaultValue": "SAPHANADB_VBAK"
+			},
+			"StagingTable": {
+				"type": "string",
+				"defaultValue": "staging44"
+			},
+			"DateTable": {
+				"type": "string",
+				"defaultValue": "maxdate"
+			}
+		},
+		"folder": {
+			"name": "Incremental_Pipeline"
+		},
+		"annotations": []
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

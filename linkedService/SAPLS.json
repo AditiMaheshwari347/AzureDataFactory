@@ -1,0 +1,18 @@
+{
+	"name": "SAPLS",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "SapHana",
+		"typeProperties": {
+			"server": "40.87.65.235:30215",
+			"authenticationType": "Basic",
+			"userName": "BPINST",
+			"encryptedCredential": "eyJDcmVkZW50aWFsSWQiOiIyODZlZmJhNy05NGExLTRlNjEtODMxZC0yYzhhYzU0MzUwODciLCJWZXJzaW9uIjoiMi4wIiwiQ2xhc3NUeXBlIjoiTWljcm9zb2Z0LkRhdGFQcm94eS5Db3JlLkludGVyU2VydmljZURhdGFDb250cmFjdC5DcmVkZW50aWFsU1UwNkNZMTQifQ=="
+		},
+		"connectVia": {
+			"referenceName": "SelfHostedIntegratnRuntime",
+			"type": "IntegrationRuntimeReference"
+		}
+	}
+}

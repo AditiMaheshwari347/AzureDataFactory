@@ -1,0 +1,15 @@
+{
+	"name": "SFDS",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "SFLS",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "SalesforceObject",
+		"typeProperties": {
+			"objectApiName": "Contact"
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

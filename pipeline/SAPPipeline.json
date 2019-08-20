@@ -1,0 +1,192 @@
+{
+	"name": "SAPPipeline",
+	"properties": {
+		"activities": [
+			{
+				"name": "SAPForEachActivity",
+				"type": "ForEach",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@pipeline().parameters.SAPtablelist",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "SAPtoBlob",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "RelationalSource",
+									"query": {
+										"value": "SELECT * FROM @{item().table_schema}.@{item().table_name}",
+										"type": "Expression"
+									}
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobStorageWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".csv"
+									}
+								},
+								"enableStaging": false
+							},
+							"inputs": [
+								{
+									"referenceName": "SAPDS",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "StorageAccountDS",
+									"type": "DatasetReference",
+									"parameters": {
+										"sinkfilename": {
+											"value": "@{item().table_schema}_@{item().table_name}.csv",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						},
+						{
+							"name": "ImportSchematoSA",
+							"type": "WebActivity",
+							"dependsOn": [
+								{
+									"activity": "SAPtoBlob",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"url": "https://ctazuresmartenterprise-function-app.azurewebsites.net/api/createschemaindwh?code=4lSGi8bKQyDq3dAnAZuRo5SuGCAupAV1WXI2RBnD5r/wlWRkUBREqw==",
+								"method": "POST",
+								"body": {
+									"value": "{\n\"blob_con_string\":\"DefaultEndpointsProtocol=https;AccountName=ctazuresmartenterprisesa;AccountKey=va6CS071hP2nK5QgSiet6Su+707CXb/XVspGNd0DuN3tgVtS8CoOFHnaLjYEpKjOrmx+Zq6M9dHQ6nunofpIdw==;EndpointSuffix=core.windows.net\",\n\"sql_con_string\":\"Server=tcp:ctazuresmartenterprise-sqlserver.database.windows.net,1433;Initial Catalog=ctazuresmartenterprise-db;Persist Security Info=False;User ID=celebal;Password=password@123;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;\",\n \"filename\": \"@{item().table_schema}_@{item().table_name}.csv\",\n \"containerName\": \"marketplace\",\n \"tablename\": \"@{item().table_schema}_@{item().table_name}\"\n}",
+									"type": "Expression"
+								},
+								"datasets": [
+									{
+										"referenceName": "StorageAccountDS",
+										"type": "DatasetReference",
+										"parameters": {
+											"sinkfilename": {
+												"value": "@{item().table_schema}_@{item().table_name}.csv",
+												"type": "Expression"
+											}
+										}
+									}
+								]
+							}
+						},
+						{
+							"name": "BlobtoSQL",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "ImportSchematoSA",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"storeSettings": {
+										"type": "AzureBlobStorageReadSettings",
+										"recursive": false,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings"
+									}
+								},
+								"sink": {
+									"type": "AzureSqlSink"
+								},
+								"enableStaging": false
+							},
+							"inputs": [
+								{
+									"referenceName": "StorageAccountDS",
+									"type": "DatasetReference",
+									"parameters": {
+										"sinkfilename": {
+											"value": "@{item().table_schema}_@{item().table_name}.csv",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "SQLDBDSSF",
+									"type": "DatasetReference",
+									"parameters": {
+										"tablelist": {
+											"value": "dbo.@{item().table_schema}_@{item().table_name}",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"SAPtablelist": {
+				"type": "array",
+				"defaultValue": [
+					{
+						"table_schema": "SAPHANADB",
+						"table_name": "EKKO"
+					},
+					{
+						"table_schema": "SAPHANADB",
+						"table_name": " EKPO"
+					}
+				]
+			}
+		},
+		"annotations": []
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

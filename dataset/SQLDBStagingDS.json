@@ -1,0 +1,24 @@
+{
+	"name": "SQLDBStagingDS",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "SQLDBLS",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"Staging_Table": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [],
+		"typeProperties": {
+			"tableName": {
+				"value": "@dataset().Staging_Table",
+				"type": "Expression"
+			}
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

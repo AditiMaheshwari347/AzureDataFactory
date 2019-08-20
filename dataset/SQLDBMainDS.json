@@ -1,0 +1,24 @@
+{
+	"name": "SQLDBMainDS",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "SQLDBLS",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"Main_table": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [],
+		"typeProperties": {
+			"tableName": {
+				"value": "@dataset().Main_table",
+				"type": "Expression"
+			}
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}
