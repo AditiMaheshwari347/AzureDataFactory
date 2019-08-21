@@ -3,8 +3,8 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Copy Data1",
-				"type": "Copy",
+				"name": "Web2",
+				"type": "WebActivity",
 				"dependsOn": [],
 				"policy": {
 					"timeout": "7.00:00:00",
@@ -15,7 +15,7 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"enableStaging": false
+					"url": "https://ctazuresmartenterprise-function-app.azurewebsites.net/api/createschemaindwh?code=4lSGi8bKQyDq3dAnAZuRo5SuGCAupAV1WXI2RBnD5r/wlWRkUBREqw=="
 				}
 			}
 		],
